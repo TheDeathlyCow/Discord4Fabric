@@ -9,21 +9,27 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.dedicated.MinecraftDedicatedServer;
 import org.apache.logging.log4j.Level;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public final class ConsoleChannelHandler {
     private ConsoleChannelHandler() {}
 
     private static DiscordConsoleBuffer buffer;
     private static boolean threadShouldStop = false;
 
+    private static final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+
     public static void stop() {
         threadShouldStop = true;
         buffer.flushAndDestroy();
+        executor.shutdown();
     }
 
     public static void init(Config config, Discord discord) {
         buffer = new DiscordConsoleBuffer();
 
-        Thread thread = new Thread(() -> {
+        executor.submit(() -> {
             while (!threadShouldStop) {
                 if (buffer.getLength() > 0) {
                     buffer.flush();
@@ -33,10 +39,11 @@ public final class ConsoleChannelHandler {
                     Thread.sleep(2500);
                 } catch (InterruptedException e) {
                     Utils.logException(e);
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
                 }
             }
         });
-        thread.start();
 
         DiscordMessageReceivedCallback.EVENT.register((user, message) -> {
             if (message.getChannel().getIdLong() != config.consoleChannelId || user.isBot()) {
