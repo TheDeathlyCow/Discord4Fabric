@@ -4,9 +4,10 @@ import me.reimnop.d4f.Discord4Fabric;
 import me.reimnop.d4f.exceptions.ChannelException;
 import me.reimnop.d4f.exceptions.GuildException;
 import me.reimnop.d4f.utils.Utils;
+import org.jetbrains.annotations.Nullable;
 
 public class DiscordConsoleBuffer {
-    private StringBuilder bufferedMessage = new StringBuilder();
+    private volatile StringBuffer bufferedMessage = new StringBuffer();
 
     public void writeLine(String msg) {
         bufferedMessage.append(msg);
@@ -27,7 +28,7 @@ public class DiscordConsoleBuffer {
                     .getConsoleChannel()
                     .sendMessage(bufferedMessage.toString())
                     .queue();
-            bufferedMessage = new StringBuilder();
+            bufferedMessage = new StringBuffer();
         } catch (GuildException | ChannelException e) {
             Utils.logException(e);
         }

@@ -2,6 +2,7 @@ package me.reimnop.d4f.console;
 
 import me.reimnop.d4f.Config;
 import me.reimnop.d4f.Discord;
+import me.reimnop.d4f.Discord4Fabric;
 import me.reimnop.d4f.events.DiscordMessageReceivedCallback;
 import me.reimnop.d4f.events.OnConsoleMessageReceivedCallback;
 import me.reimnop.d4f.utils.Utils;
@@ -11,6 +12,8 @@ import org.apache.logging.log4j.Level;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public final class ConsoleChannelHandler {
     private ConsoleChannelHandler() {}
@@ -18,32 +21,31 @@ public final class ConsoleChannelHandler {
     private static DiscordConsoleBuffer buffer;
     private static boolean threadShouldStop = false;
 
-    private static final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(0, Thread.ofVirtual().factory());
 
     public static void stop() {
         threadShouldStop = true;
         buffer.flushAndDestroy();
-        executor.shutdown();
+        try {
+            executor.awaitTermination(15, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Utils.logException(e);
+            Thread.currentThread().interrupt();
+        }
     }
 
     public static void init(Config config, Discord discord) {
         buffer = new DiscordConsoleBuffer();
 
-        executor.submit(() -> {
-            while (!threadShouldStop) {
-                if (buffer.getLength() > 0) {
-                    buffer.flush();
-                }
-
-                try {
-                    Thread.sleep(2500);
-                } catch (InterruptedException e) {
-                    Utils.logException(e);
-                    executor.shutdownNow();
-                    Thread.currentThread().interrupt();
-                }
+        executor.scheduleAtFixedRate(() -> {
+            if (threadShouldStop) {
+                return;
             }
-        });
+
+            if (buffer.getLength() > 0) {
+                buffer.flush();
+            }
+        }, 0, 2500, TimeUnit.MILLISECONDS);
 
         DiscordMessageReceivedCallback.EVENT.register((user, message) -> {
             if (message.getChannel().getIdLong() != config.consoleChannelId || user.isBot()) {
