@@ -10,6 +10,9 @@ public class DiscordConsoleBuffer {
     private volatile StringBuffer bufferedMessage = new StringBuffer();
 
     public void writeLine(String msg) {
+        if (msg.length() > 2000) {
+            msg = "Unable to send log message from console over 2000 characters";
+        }
         bufferedMessage.append(msg);
         bufferedMessage.append('\n');
     }

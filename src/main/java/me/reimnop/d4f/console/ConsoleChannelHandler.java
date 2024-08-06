@@ -75,10 +75,12 @@ public final class ConsoleChannelHandler {
         if (threadShouldStop) return;
         if (msg.length() > 2000) {
             String[] lines = msg.split("\n");
-            for (String line : lines) {
-                addMessage(line);
+            if (lines.length > 1) {
+                for (String line : lines) {
+                    addMessage(line);
+                }
+                return;
             }
-            return;
         }
         if (buffer.getLength() + msg.length() > 2000) {
             buffer.flush();
